@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cstdlib>
+#include <random>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 
@@ -26,16 +27,76 @@ int main(int argc, char* argv[]) {
     cv::imshow(kOriginalImageWindowName, original_image);
   }
 
-  cv::Mat generated_image = original_image;
   {
+    cv::Mat generated_image = original_image.clone();
+    generated_image = cv::Scalar();
+
     const std::string kGeneratedImageWindowName = "Generated image";
     cv::namedWindow(kGeneratedImageWindowName, CV_GUI_EXPANDED);
     cv::imshow(kGeneratedImageWindowName, generated_image);
-  }
 
-  while(true) {
-    cv::waitKey(10);
-  };
+    const int kTileWidth = 10;
+    const int kTileHeight = 10;
+    const cv::Size kGeneratedImageSize = generated_image.size();
+    const int kNumTilesX = std::ceil(kGeneratedImageSize.width / (kTileWidth * 1.0f));
+    const int kNumTilesY = std::ceil(kGeneratedImageSize.height / (kTileHeight * 1.0f));
+    cv::Mat tile_colors = cv::Mat::zeros(kNumTilesY, kNumTilesX, CV_8UC3);
+    int best_distance = -1;
+    cv::Mat candidate_tile_colors = tile_colors.clone();
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> random_tile_row(0, kNumTilesY - 1);
+    std::uniform_int_distribution<int> random_tile_col(0, kNumTilesX - 1);
+
+
+    const std::string kCandidateImageWindowName = "Candidate image";
+    cv::namedWindow(kCandidateImageWindowName, CV_GUI_EXPANDED);
+
+    while(true) {
+      cv::Mat candidate_image = generated_image.clone();
+      /** Mutate candidate */
+      cv::Vec3b& candidate_tile_color = candidate_tile_colors.at<cv::Vec3b>(random_tile_row(gen), random_tile_col(gen));
+      std::normal_distribution<> random_b(candidate_tile_color.val[0], 64);
+      std::normal_distribution<> random_g(candidate_tile_color.val[1], 64);
+      std::normal_distribution<> random_r(candidate_tile_color.val[2], 64);
+      candidate_tile_color.val[0] = std::max(0, std::min(255, static_cast<int>(random_b(gen))));
+      candidate_tile_color.val[1] = std::max(0, std::min(255, static_cast<int>(random_g(gen))));
+      candidate_tile_color.val[2] = std::max(0, std::min(255, static_cast<int>(random_r(gen))));
+
+      for (int x = 0; x < kNumTilesX; ++x) {
+        for (int y = 0; y < kNumTilesY; ++y) {
+          const cv::Point kBeginPoint(x * kTileWidth, y * kTileHeight);
+          const cv::Point kEndPoint(kBeginPoint.x + kTileWidth, kBeginPoint.y + kTileHeight);
+          cv::rectangle(
+            candidate_image,
+            kBeginPoint,
+            kEndPoint,
+            cv::Scalar(candidate_tile_colors.at<cv::Vec3b>(y, x)),
+            CV_FILLED);
+        }
+      }
+
+      cv::imshow(kCandidateImageWindowName, candidate_image);
+
+      cv::Mat image_diff;
+      cv::absdiff(original_image, candidate_image, image_diff);
+
+
+      cv::Scalar image_channel_diff_sum = cv::sum(image_diff);
+      int distance = image_channel_diff_sum.val[0] + image_channel_diff_sum.val[1] + image_channel_diff_sum.val[3];
+
+      if (-1 == best_distance || distance < best_distance) {
+        best_distance = distance;
+        generated_image = candidate_image.clone();
+        tile_colors = candidate_tile_colors.clone();
+        cv::imshow(kGeneratedImageWindowName, generated_image);
+      } else {
+        candidate_tile_colors = tile_colors.clone();
+      }
+      cv::waitKey(1);
+    }
+  }
 
   cv::destroyAllWindows();
 };
