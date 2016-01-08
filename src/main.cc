@@ -15,6 +15,8 @@ int main(int argc, char* argv[]) {
   }
 
   cv::Mat original_image = cv::imread(argv[1], CV_LOAD_IMAGE_COLOR);
+  cv::Mat original_image_lab;
+  cv::cvtColor(original_image, original_image_lab, CV_BGR2Lab);
 
   if (original_image.empty()) {
     std::cerr << "Could not read image \"" << argv[1] << "\"\n";
@@ -49,17 +51,13 @@ int main(int argc, char* argv[]) {
     std::uniform_int_distribution<int> random_tile_row(0, kNumTilesY - 1);
     std::uniform_int_distribution<int> random_tile_col(0, kNumTilesX - 1);
 
-
-    const std::string kCandidateImageWindowName = "Candidate image";
-    cv::namedWindow(kCandidateImageWindowName, CV_GUI_EXPANDED);
-
     while(true) {
       cv::Mat candidate_image = generated_image.clone();
       /** Mutate candidate */
       cv::Vec3b& candidate_tile_color = candidate_tile_colors.at<cv::Vec3b>(random_tile_row(gen), random_tile_col(gen));
-      std::normal_distribution<> random_b(candidate_tile_color.val[0], 64);
-      std::normal_distribution<> random_g(candidate_tile_color.val[1], 64);
-      std::normal_distribution<> random_r(candidate_tile_color.val[2], 64);
+      std::normal_distribution<> random_b(candidate_tile_color.val[0], 128);
+      std::normal_distribution<> random_g(candidate_tile_color.val[1], 128);
+      std::normal_distribution<> random_r(candidate_tile_color.val[2], 128);
       candidate_tile_color.val[0] = std::max(0, std::min(255, static_cast<int>(random_b(gen))));
       candidate_tile_color.val[1] = std::max(0, std::min(255, static_cast<int>(random_g(gen))));
       candidate_tile_color.val[2] = std::max(0, std::min(255, static_cast<int>(random_r(gen))));
@@ -77,9 +75,10 @@ int main(int argc, char* argv[]) {
         }
       }
 
-      cv::imshow(kCandidateImageWindowName, candidate_image);
+      cv::Mat candidate_image_lab;
+      cv::cvtColor(candidate_image, candidate_image_lab, CV_BGR2Lab);
 
-      double distance = cv::norm(original_image, candidate_image);
+      double distance = cv::norm(original_image_lab, candidate_image_lab);
 
       if (-1 == best_distance || distance < best_distance) {
         best_distance = distance;
