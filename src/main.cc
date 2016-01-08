@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     const int kNumTilesX = std::ceil(kGeneratedImageSize.width / (kTileWidth * 1.0f));
     const int kNumTilesY = std::ceil(kGeneratedImageSize.height / (kTileHeight * 1.0f));
     cv::Mat tile_colors = cv::Mat::zeros(kNumTilesY, kNumTilesX, CV_8UC3);
-    int best_distance = -1;
+    double best_distance = -1;
     cv::Mat candidate_tile_colors = tile_colors.clone();
 
     std::random_device rd;
@@ -79,12 +79,7 @@ int main(int argc, char* argv[]) {
 
       cv::imshow(kCandidateImageWindowName, candidate_image);
 
-      cv::Mat image_diff;
-      cv::absdiff(original_image, candidate_image, image_diff);
-
-
-      cv::Scalar image_channel_diff_sum = cv::sum(image_diff);
-      int distance = image_channel_diff_sum.val[0] + image_channel_diff_sum.val[1] + image_channel_diff_sum.val[3];
+      double distance = cv::norm(original_image, candidate_image);
 
       if (-1 == best_distance || distance < best_distance) {
         best_distance = distance;
