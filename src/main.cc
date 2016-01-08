@@ -1,27 +1,36 @@
 #include <iostream>
 #include <cstdlib>
 #include <random>
+#include <limits>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
 
 void print_help() {
-  std::cerr << "Usage: gp [image file name]\n";
+  std::cerr << "Usage: gp [pixel scale] [input image] [output image]\n";
+  std::cerr << "pixel scale - value in range (0, 1>, it is used to calculate the output image pixel size:\n";
+  std::cerr << "              pixel size = ceil(image_shorter_dimension * pixel_scale))\n";
 }
 
 int main(int argc, char* argv[]) {
-  if (2 != argc) {
+  if (4 != argc) {
     print_help();
     return EXIT_FAILURE;
   }
 
-  cv::Mat original_image = cv::imread(argv[1], CV_LOAD_IMAGE_COLOR);
+  const float kPixelScale = std::max(std::numeric_limits<float>::min(), std::min(1.0f, std::stof(argv[1])));
+  const std::string kInputImageFilename = argv[2];
+  const std::string kOutputImageFilename = argv[3];
+
+  cv::Mat original_image = cv::imread(kInputImageFilename, CV_LOAD_IMAGE_COLOR);
   cv::Mat original_image_lab;
   cv::cvtColor(original_image, original_image_lab, CV_BGR2Lab);
 
   if (original_image.empty()) {
-    std::cerr << "Could not read image \"" << argv[1] << "\"\n";
+    std::cerr << "Could not read image \"" << kInputImageFilename << "\"\n";
     return EXIT_FAILURE;
   }
+
+  std::cout << "Press ESC to save output image and exit ..." << std::endl;
 
   {
     const std::string kOriginalImageWindowName = "Original image";
@@ -37,11 +46,11 @@ int main(int argc, char* argv[]) {
     cv::namedWindow(kGeneratedImageWindowName, CV_GUI_EXPANDED);
     cv::imshow(kGeneratedImageWindowName, generated_image);
 
-    const int kTileWidth = 10;
-    const int kTileHeight = 10;
     const cv::Size kGeneratedImageSize = generated_image.size();
-    const int kNumTilesX = std::ceil(kGeneratedImageSize.width / (kTileWidth * 1.0f));
-    const int kNumTilesY = std::ceil(kGeneratedImageSize.height / (kTileHeight * 1.0f));
+    const int kPixelSize =
+      std::ceil(std::min(kGeneratedImageSize.width, kGeneratedImageSize.height) * kPixelScale);
+    const int kNumTilesX = std::ceil(kGeneratedImageSize.width / (kPixelSize * 1.0f));
+    const int kNumTilesY = std::ceil(kGeneratedImageSize.height / (kPixelSize * 1.0f));
     cv::Mat tile_colors = cv::Mat::zeros(kNumTilesY, kNumTilesX, CV_8UC3);
     double best_distance = -1;
     cv::Mat candidate_tile_colors = tile_colors.clone();
@@ -64,8 +73,8 @@ int main(int argc, char* argv[]) {
 
       for (int x = 0; x < kNumTilesX; ++x) {
         for (int y = 0; y < kNumTilesY; ++y) {
-          const cv::Point kBeginPoint(x * kTileWidth, y * kTileHeight);
-          const cv::Point kEndPoint(kBeginPoint.x + kTileWidth, kBeginPoint.y + kTileHeight);
+          const cv::Point kBeginPoint(x * kPixelSize, y * kPixelSize);
+          const cv::Point kEndPoint(kBeginPoint.x + kPixelSize, kBeginPoint.y + kPixelSize);
           cv::rectangle(
             candidate_image,
             kBeginPoint,
@@ -88,9 +97,15 @@ int main(int argc, char* argv[]) {
       } else {
         candidate_tile_colors = tile_colors.clone();
       }
-      cv::waitKey(1);
+      /** Wait for ESC key */
+      if (27 == static_cast<char>(cv::waitKey(1))) {
+        break;
+      }
     }
+
+    cv::imwrite(kOutputImageFilename, generated_image);
   }
+
 
   cv::destroyAllWindows();
 };
