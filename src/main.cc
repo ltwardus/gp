@@ -88,18 +88,18 @@ int main(int argc, char* argv[]) {
   cv::imshow(kOriginalImageWindowName, original_image);
 
   {
-    cv::Mat generated_image = original_image.clone();
-    generated_image = cv::Scalar();
+    cv::Mat output_image = original_image.clone();
+    output_image = cv::Scalar();
 
-    const std::string kGeneratedImageWindowName = "Generated image - Press ESC to save output image and exit ...";
-    cv::namedWindow(kGeneratedImageWindowName, CV_GUI_EXPANDED);
-    cv::imshow(kGeneratedImageWindowName, generated_image);
+    const std::string kOutputImageWindowName = "Output image - Press ESC to save output image and exit ...";
+    cv::namedWindow(kOutputImageWindowName, CV_GUI_EXPANDED);
+    cv::imshow(kOutputImageWindowName, output_image);
 
-    const cv::Size kGeneratedImageSize = generated_image.size();
+    const cv::Size kOutputImageSize = output_image.size();
     const int kPixelSize =
-      std::ceil(std::min(kGeneratedImageSize.width, kGeneratedImageSize.height) * kPixelScale);
-    const int kNumTilesX = std::ceil(kGeneratedImageSize.width / (kPixelSize * 1.0f));
-    const int kNumTilesY = std::ceil(kGeneratedImageSize.height / (kPixelSize * 1.0f));
+      std::ceil(std::min(kOutputImageSize.width, kOutputImageSize.height) * kPixelScale);
+    const int kNumTilesX = std::ceil(kOutputImageSize.width / (kPixelSize * 1.0f));
+    const int kNumTilesY = std::ceil(kOutputImageSize.height / (kPixelSize * 1.0f));
     cv::Mat best_tiles = cv::Mat(kNumTilesY, kNumTilesX, CV_8UC3, cv::Scalar(127, 127, 127));
     double best_distance = -1;
 
@@ -122,8 +122,8 @@ int main(int argc, char* argv[]) {
       generate_random_color_channel_values(kNumWorkers, std::normal_distribution<>(0, 32));
     for (unsigned i = 0; i < kNumWorkers; ++i) {
       tiles[i] = best_tiles.clone();
-      images[i] = generated_image.clone();
-      images_lab[i] = generated_image.clone();
+      images[i] = output_image.clone();
+      images_lab[i] = output_image.clone();
       rnd_engines[i] = std::mt19937(std::random_device{}());
     }
 
@@ -162,7 +162,7 @@ int main(int argc, char* argv[]) {
 
       if (-1 == best_distance || best_candidate_distance < best_distance) {
         best_distance = best_candidate_distance;
-        generated_image = images[best_candidate_index].clone();
+        output_image = images[best_candidate_index].clone();
         best_tiles = tiles[best_candidate_index].clone();
       }
 
@@ -172,7 +172,7 @@ int main(int argc, char* argv[]) {
           std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time_gui_update).count();
         if (gui_update_time_diff_ms >= kGuiUpdateIntervalMs) {
           cv::imshow(kOriginalImageWindowName, original_image);
-          cv::imshow(kGeneratedImageWindowName, generated_image);
+          cv::imshow(kOutputImageWindowName, output_image);
           last_time_gui_update = now;
           /** Wait for ESC key */
           if (27 == static_cast<char>(cv::waitKey(1))) {
@@ -182,7 +182,7 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    cv::imwrite(kOutputImageFilename, generated_image);
+    cv::imwrite(kOutputImageFilename, output_image);
   }
 
   cv::destroyAllWindows();
