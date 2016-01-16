@@ -1,1 +1,7 @@
-Genetic Pixelizator - program that will create pixelated version of the image with the help of genetic algorithm
+Genetic Pixelizator - program that will create pixelated version of the image with the help of the genetic algorithm
+
+Building:
+Use cmake and then just "make".
+
+Usage:
+Go to the build directory and type "./gp" for help.
