@@ -24,13 +24,13 @@ T clamp(const T&n, const T& lower, const T& upper) {
 void generate_end_evaluate_solution(
     cv::Mat& tiles,
     cv::Mat& image,
+    cv::Mat& image_lab,
     double& distance,
-    const cv::Mat& original_image_lab,
     std::mt19937& rnd_engine,
     std::uniform_int_distribution<int>& generate_random_tile_row,
     std::uniform_int_distribution<int>& generate_random_tile_col,
     std::normal_distribution<> generate_random_color_channel_value,
-    cv::Mat& image_lab) {
+    const cv::Mat& original_image_lab) {
   const int kPixelSize = std::ceil(image.cols / (tiles.cols * 1.0f));
 
   /** Mutate candidate */
@@ -109,6 +109,10 @@ int main(int argc, char* argv[]) {
     const unsigned kNumWorkers = std::max(static_cast<unsigned>(1), std::thread::hardware_concurrency());
 
     std::vector<std::future<void>> results(kNumWorkers);
+    std::vector<cv::Mat> tiles(kNumWorkers);
+    std::vector<cv::Mat> images(kNumWorkers);
+    std::vector<cv::Mat> images_lab(kNumWorkers);
+    std::vector<double> distances(kNumWorkers, -1);
     std::vector<std::mt19937> rnd_engines(kNumWorkers);
     std::vector<std::uniform_int_distribution<int>>
       generate_random_tile_rows(kNumWorkers, std::uniform_int_distribution<int>(0, kNumTilesY - 1));
@@ -116,19 +120,15 @@ int main(int argc, char* argv[]) {
       generate_random_tile_cols(kNumWorkers, std::uniform_int_distribution<int>(0, kNumTilesX - 1));
     std::vector<std::normal_distribution<>>
       generate_random_color_channel_values(kNumWorkers, std::normal_distribution<>(0, 32));
-    std::vector<double> distances(kNumWorkers, -1);
-    std::vector<cv::Mat> tiles(kNumWorkers);
-    std::vector<cv::Mat> images(kNumWorkers);
-    std::vector<cv::Mat> images_lab(kNumWorkers);
     for (unsigned i = 0; i < kNumWorkers; ++i) {
-      rnd_engines[i] = std::mt19937(std::random_device{}());
       tiles[i] = best_tiles.clone();
       images[i] = generated_image.clone();
       images_lab[i] = generated_image.clone();
+      rnd_engines[i] = std::mt19937(std::random_device{}());
     }
 
     std::chrono::system_clock::time_point last_time_gui_update;
-    const int kGuiUpdateIntervalMs = 1000;
+    const int kGuiUpdateIntervalMs = 200;
 
     while(true) {
       for (unsigned i = 0; i < kNumWorkers; ++i) {
@@ -140,13 +140,13 @@ int main(int argc, char* argv[]) {
             generate_end_evaluate_solution,
             std::ref(tiles[i]),
             std::ref(images[i]),
+            std::ref(images_lab[i]),
             std::ref(distances[i]),
-            std::cref(original_image_lab),
             std::ref(rnd_engines[i]),
             std::ref(generate_random_tile_rows[i]),
             std::ref(generate_random_tile_cols[i]),
             std::ref(generate_random_color_channel_values[i]),
-            std::ref(images_lab[i]));
+            std::cref(original_image_lab));
       }
 
       /** Wait for results and also get best candidate */
