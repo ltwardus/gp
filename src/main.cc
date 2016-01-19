@@ -29,7 +29,7 @@ void generate_end_evaluate_solution(
     std::mt19937& rnd_engine,
     std::uniform_int_distribution<int>& generate_random_tile_row,
     std::uniform_int_distribution<int>& generate_random_tile_col,
-    std::normal_distribution<> generate_random_color_channel_value,
+    std::normal_distribution<>& generate_random_color_channel_value,
     const cv::Mat& original_image_lab) {
   const int kPixelSize = std::ceil(image.cols / (tiles.cols * 1.0f));
 
